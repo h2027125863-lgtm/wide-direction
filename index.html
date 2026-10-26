@@ -1,0 +1,500 @@
+
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<style>
+* { box-sizing:border-box; }
+
+html,body {
+  margin:0;
+  width:100%;
+  height:100%;
+  background:transparent!important;
+  overflow:hidden;
+}
+
+body {
+  display:grid;
+  place-items:center;
+  font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;
+}
+
+.stage {
+  position:relative;
+  width:100%;
+  max-width:1100px;
+  aspect-ratio:1100/620;
+  background:transparent;
+}
+
+svg {
+  width:100%;
+  height:100%;
+  display:block;
+  overflow:visible;
+}
+
+.block .shell {
+  fill:rgba(36,55,70,.12);
+  stroke:#8ba6b4;
+  stroke-width:2;
+  transition:stroke .8s,fill .8s,filter .8s;
+}
+
+.block .inner {
+  fill:none;
+  stroke:#658596;
+  stroke-width:1;
+  opacity:.55;
+}
+
+.block .windows {
+  stroke:#8da5b2;
+  stroke-width:1;
+  opacity:.55;
+}
+
+.block text {
+  fill:#d9e3e8;
+  font-size:17px;
+  letter-spacing:1px;
+  font-weight:500;
+}
+
+.block.burning .shell {
+  fill:rgba(155,62,42,.25);
+  stroke:#e68e65;
+  filter:drop-shadow(0 0 11px rgba(219,92,54,.55));
+}
+
+.block.affected .shell {
+  fill:rgba(125,62,52,.16);
+  stroke:#c98972;
+}
+
+.block.safe .shell {
+  stroke:#91a8ae;
+  fill:rgba(65,85,94,.12);
+}
+
+.route {
+  fill:none;
+  stroke:#dba17e;
+  stroke-width:2.5;
+  stroke-dasharray:5 11;
+  opacity:0;
+  stroke-linecap:round;
+}
+
+.route.show { opacity:.7; }
+
+.wind {
+  fill:none;
+  stroke:#8ab9c7;
+  stroke-width:2;
+  stroke-dasharray:8 10;
+  opacity:.7;
+}
+
+.ember {
+  fill:#ffb27c;
+  filter:drop-shadow(0 0 6px #e66b3f);
+}
+
+.play {
+  position:absolute;
+  left:50%;
+  bottom:1%;
+  transform:translateX(-50%);
+  width:72px;
+  height:72px;
+  border-radius:50%;
+  border:1px solid rgba(224,153,113,.65);
+  background:rgba(29,39,48,.82);
+  color:#e5a37e;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  box-shadow:
+    0 0 0 8px rgba(216,128,85,.055),
+    0 0 28px rgba(190,92,54,.14);
+  transition:transform .2s,background .2s;
+}
+
+.play:hover {
+  transform:translateX(-50%) scale(1.07);
+  background:rgba(70,47,43,.95);
+}
+
+.play svg {
+  width:33px;
+  height:33px;
+}
+
+.play:focus-visible {
+  outline:2px solid #f2b48c;
+  outline-offset:6px;
+}
+
+.meta {
+  font-size:14px;
+  fill:#a5bac3;
+  letter-spacing:.5px;
+}
+
+.note {
+  font-size:12px;
+  fill:#91a2ab;
+}
+
+.legend {
+  font-size:13px;
+  fill:#c6d4d9;
+}
+
+@media(max-width:650px) {
+  .play {
+    width:52px;
+    height:52px;
+  }
+  .play svg {
+    width:25px;
+    height:25px;
+  }
+}
+</style>
+</head>
+
+<body>
+<div class="stage">
+
+<svg
+  viewBox="0 0 1100 620"
+  role="img"
+  aria-label="八栋楼宇及风向、飞火传播机制动态示意。点击下方火焰按钮播放。">
+
+<defs>
+  <pattern
+    id="windows"
+    width="17"
+    height="18"
+    patternUnits="userSpaceOnUse">
+    <path
+      d="M5 4v8m7-8v8"
+      class="windows"/>
+  </pattern>
+
+  <marker
+    id="windArrow"
+    viewBox="0 0 10 10"
+    refX="9"
+    refY="5"
+    markerWidth="6"
+    markerHeight="6"
+    orient="auto-start-reverse">
+    <path
+      d="M1 1L9 5L1 9"
+      fill="none"
+      stroke="#8ab9c7"
+      stroke-width="1.5"/>
+  </marker>
+</defs>
+
+<!-- 辅助线 -->
+<g opacity=".36"
+   stroke="#597382"
+   stroke-width="1"
+   fill="none">
+
+  <path
+    d="M70 95H1030M70 295H1030M70 485H1030"
+    stroke-dasharray="3 13"/>
+
+  <path
+    d="M265 45V520M550 45V520M835 45V520"
+    stroke-dasharray="3 13"/>
+</g>
+
+<!-- 飞火传播曲线 -->
+<g id="routes">
+  <path id="r1" class="route"
+    d="M240 170Q320 105 410 168"/>
+  <path id="r2" class="route"
+    d="M240 175Q490 70 700 166"/>
+  <path id="r3" class="route"
+    d="M237 193Q335 285 415 355"/>
+  <path id="r4" class="route"
+    d="M237 195Q480 320 695 360"/>
+  <path id="r5" class="route"
+    d="M235 196Q430 490 410 510"/>
+  <path id="r6" class="route"
+    d="M240 193Q650 285 970 360"/>
+</g>
+
+<!-- 建筑由JS生成 -->
+<g id="buildings"></g>
+
+<!-- 风向 -->
+<g id="windGroup">
+
+  <path
+    class="wind"
+    d="M1015 530Q936 458 854 389"
+    marker-end="url(#windArrow)"/>
+
+  <path
+    class="wind"
+    d="M1005 557Q926 485 843 418"
+    marker-end="url(#windArrow)"/>
+
+  <text
+    x="935"
+    y="579"
+    class="meta"
+    text-anchor="middle">
+    东至东南风 · 约14 km/h
+  </text>
+</g>
+
+<!-- 火星 -->
+<g id="particles"></g>
+
+<!-- 图例 -->
+<g transform="translate(80 556)">
+  <circle cx="0" cy="0" r="5" fill="#d87955"/>
+  <text x="16" y="5" class="legend">受波及</text>
+
+  <circle cx="123" cy="0" r="5" fill="#92aab2"/>
+  <text x="139" y="5" class="legend">未波及</text>
+</g>
+
+<text
+  x="550"
+  y="603"
+  text-anchor="middle"
+  class="note">
+  楼宇位置及飞火轨迹为机制示意，非实际测绘或传播顺序
+</text>
+
+</svg>
+
+<!-- 点击播放按钮 -->
+<button
+  class="play"
+  id="play"
+  aria-label="播放飞火传播动画"
+  title="播放动画">
+
+  <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+    <path
+      d="M17 3C18 10 10 12 12 18C8 16 8 12 8 12C3 20 7 28 16 29C25 28 28 20 23 14C23 19 20 20 19 20C23 12 18 7 17 3Z"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linejoin="round"/>
+    <path
+      d="M15 20L20 23L15 26Z"
+      fill="currentColor"/>
+  </svg>
+</button>
+
+</div>
+
+<script>
+const data = [
+  {x:90, y:105, label:"宏昌阁", type:"origin"},
+  {x:375,y:105, label:"受波及",type:"affected"},
+  {x:660,y:105, label:"受波及",type:"affected"},
+  {x:90, y:290, label:"受波及",type:"affected"},
+  {x:375,y:290, label:"受波及",type:"affected"},
+  {x:660,y:290, label:"受波及",type:"affected"},
+  {x:235,y:465, label:"受波及",type:"affected"},
+  {x:660,y:465, label:"未波及",type:"safe"}
+];
+
+const ns = "http://www.w3.org/2000/svg";
+
+const bgroup = document.getElementById("buildings");
+const pgroup = document.getElementById("particles");
+const btn = document.getElementById("play");
+
+function node(name,attrs={},parent=bgroup) {
+  const el = document.createElementNS(ns,name);
+
+  for(const [k,v] of Object.entries(attrs)) {
+    el.setAttribute(k,v);
+  }
+
+  parent.appendChild(el);
+  return el;
+}
+
+const blocks = [];
+
+data.forEach((d,i) => {
+
+  const g = node("g",{
+    class:"block " + (d.type==="safe" ? "safe" : ""),
+    "data-i":i,
+    transform:`translate(${d.x} ${d.y})`
+  });
+
+  node("rect",{
+    class:"shell",
+    width:165,
+    height:116,
+    rx:3
+  },g);
+
+  node("rect",{
+    class:"inner",
+    x:9,y:9,
+    width:147,
+    height:98,
+    rx:1
+  },g);
+
+  node("rect",{
+    x:13,y:13,
+    width:139,
+    height:90,
+    fill:"url(#windows)",
+    opacity:".42"
+  },g);
+
+  node("path",{
+    d:"M0 29H165M0 87H165",
+    stroke:"#78919d",
+    "stroke-width":"1",
+    opacity:".45"
+  },g);
+
+  const txt = node("text",{
+    x:82.5,
+    y:63,
+    "text-anchor":"middle"
+  },g);
+
+  txt.textContent = d.label;
+
+  blocks.push(g);
+});
+
+let raf = 0;
+let timers = [];
+
+const wait = (fn,ms) => {
+  timers.push(setTimeout(fn,ms));
+};
+
+function clear() {
+
+  cancelAnimationFrame(raf);
+
+  timers.forEach(clearTimeout);
+  timers = [];
+
+  pgroup.replaceChildren();
+
+  document.querySelectorAll(".route").forEach(e => {
+    e.classList.remove("show");
+  });
+
+  blocks.forEach((g,i) => {
+    g.classList.remove("burning","affected");
+
+    if(i===7) {
+      g.classList.add("safe");
+    }
+  });
+}
+
+function fly(pathId,delay,duration,target) {
+
+  wait(() => {
+
+    const path = document.getElementById(pathId);
+    path.classList.add("show");
+
+    const count = 17;
+    const els = [];
+
+    for(let i=0;i<count;i++) {
+      els.push(node("circle",{
+        class:"ember",
+        r:2+Math.random()*2
+      },pgroup));
+    }
+
+    const t0 = performance.now();
+
+    function frame(now) {
+
+      const f = (now-t0)/duration;
+
+      els.forEach((el,i) => {
+
+        const progress = f-i*.048;
+
+        if(progress<0 || progress>1) {
+          el.setAttribute("opacity","0");
+          return;
+        }
+
+        const pos = path.getPointAtLength(
+          progress*path.getTotalLength()
+        );
+
+        el.setAttribute(
+          "cx",
+          pos.x+Math.sin(progress*34+i)*7
+        );
+
+        el.setAttribute(
+          "cy",
+          pos.y+Math.cos(progress*23+i)*7
+        );
+
+        el.setAttribute(
+          "opacity",
+          Math.sin(Math.PI*progress)*.95
+        );
+      });
+
+      if(f<1.8) {
+        raf=requestAnimationFrame(frame);
+      } else {
+        els.forEach(el=>el.remove());
+      }
+    }
+
+    raf=requestAnimationFrame(frame);
+
+    wait(() => {
+      blocks[target].classList.add("affected");
+    },duration*.85);
+
+  },delay);
+}
+
+function play() {
+
+  clear();
+
+  blocks[0].classList.add("burning");
+
+  fly("r1",500,1500,1);
+  fly("r2",1250,1800,2);
+  fly("r3",1800,1700,4);
+  fly("r4",2700,1900,5);
+  fly("r5",3500,1850,6);
+  fly("r6",4300,1850,3);
+}
+
+btn.addEventListener("click",play);
+</script>
+
+</body>
+</html>
